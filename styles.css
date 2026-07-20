@@ -328,6 +328,7 @@ img {
   display: flex;
   align-items: center;
   gap: 24px;
+  margin-left: 40px; /* Space between logo and first item */
 }
 
 .nav-link {
@@ -337,6 +338,7 @@ img {
   letter-spacing: 0.2px;
   position: relative;
   padding: 6px 0;
+  white-space: nowrap; /* Prevent wrapping into multiple lines */
 }
 .nav-link:hover, .nav-link.active {
   color: var(--accent);
@@ -396,6 +398,7 @@ img {
   display: flex;
   align-items: center;
   gap: 15px;
+  margin-left: 30px; /* Spacing between menu links and actions */
 }
 
 .header-btn {
@@ -2391,8 +2394,27 @@ textarea.form-control {
 
 /* ========================================================================
    RESPONSIVENESS MEDIA QUERIES
-======================================================================== */
+   ======================================================================== */
+@media (max-width: 1200px) {
+  .nav-menu {
+    gap: 16px;
+    margin-left: 24px;
+  }
+  .search-container {
+    width: 200px;
+  }
+}
+
 @media (max-width: 1024px) {
+  .nav-menu {
+    gap: 12px;
+    margin-left: 16px;
+  }
+  
+  .nav-link {
+    font-size: 0.85rem;
+  }
+
   .hero-grid {
     grid-template-columns: 1fr;
     gap: 40px;
@@ -2430,10 +2452,10 @@ textarea.form-control {
   }
   
   .search-container {
-    width: 200px;
+    width: 150px;
   }
   .search-input:focus {
-    width: 240px;
+    width: 200px;
   }
 }
 
@@ -2452,6 +2474,7 @@ textarea.form-control {
   
   .header-actions {
     gap: 8px;
+    margin-left: 0;
   }
   
   .why-grid {
