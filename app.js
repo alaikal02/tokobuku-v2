@@ -5,8 +5,8 @@
 ========================================================================
 */
 
-// --- BOOK DATABASE ---
-const BOOKS = [
+// --- BOOK DATABASE (Synced with API / books.json) ---
+let BOOKS = [
   {
     id: "nadham-qaidah-sharfiyyah",
     title: "Nadham Qaidah sharfiyyah (saku)",
@@ -38,6 +38,7 @@ const BOOKS = [
   },
   {
     id: "trjmh-f-qorib-zaman-now",
+    altId: "trjmh-fqorib-zaman-now-saku",
     title: "Trjmh F.Qorib Zaman Now (saku)",
     author: "Tim Redaksi Darussholah",
     genre: "fiqih",
@@ -47,7 +48,26 @@ const BOOKS = [
     price: 60000,
     originalPrice: 75000,
     discount: 20,
-    synopsis: "Terjemah Kitab Fathul Qorib Al-Mujib yang disajikan secara kekinian dengan bahasa yang mudah dicerna oleh generasi millenial dan santri era digital, tanpa mengurangi orisinalitas hukum fikih fiqih Syafi'iyyah.",
+    synopsis: "Terjemah Kitab Fathul Qorib Al-Mujib yang disajikan secara kekinian dengan bahasa yang mudah dicerna oleh generasi millenial dan santri era digital, tanpa mengurangi orisinalitas hukum fikih fiqih Syafi'iyah.",
+    warranty: "Setiap pembelian di situs resmi ini mendapatkan garansi penukaran buku baru jika terdapat kerusakan cetak atau halaman yang terbalik.",
+    marketplace_links: {
+      tokopedia: "https://tokopedia.com",
+      shopee: "https://shopee.co.id",
+      whatsapp_sales: "https://wa.me"
+    },
+    dimensions: {
+      length_cm: 14,
+      width_cm: 10,
+      type: "Saku"
+    },
+    weight_gram: 180,
+    pages: 180,
+    pricing: {
+      original_price: 75000,
+      discount_percentage: 20,
+      selling_price: 60000,
+      currency: "IDR"
+    },
     coverClass: "bg-gradient-to-br from-emerald-900 via-green-900 to-stone-900",
     coverImg: "",
     specs: {
@@ -339,6 +359,154 @@ let ACTIVE_BOOK = null;
 let ACTIVE_PDF_BOOK = null;
 let CURRENT_PDF_PAGE = 0; // index of spread
 
+// ============================================================================
+// UNIVERSAL CUSTOM DROPDOWN ENGINE (Enterprise UI)
+// ============================================================================
+function initCustomDropdown(selectEl) {
+  if (!selectEl || selectEl.dataset.customDropdownInit === "true") return;
+  selectEl.dataset.customDropdownInit = "true";
+
+  // Hide the native select accessibly
+  selectEl.classList.add("custom-select-native-hidden");
+
+  // Create custom dropdown wrapper
+  const wrap = document.createElement("div");
+  wrap.className = "custom-select-wrap";
+  if (selectEl.classList.contains("filter-select")) wrap.classList.add("wrap-filter-select");
+  if (selectEl.classList.contains("admin-select")) wrap.classList.add("wrap-admin-select");
+  if (selectEl.classList.contains("form-control")) wrap.classList.add("wrap-form-control");
+  if (selectEl.id) wrap.id = `wrap-${selectEl.id}`;
+
+  // Trigger button
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "custom-select-trigger";
+  if (selectEl.classList.contains("form-control")) trigger.classList.add("trigger-form-control");
+  if (selectEl.classList.contains("filter-select")) trigger.classList.add("trigger-filter-select");
+  if (selectEl.classList.contains("admin-select")) trigger.classList.add("trigger-admin-select");
+
+  const triggerText = document.createElement("span");
+  triggerText.className = "custom-select-label";
+
+  const triggerArrow = document.createElement("i");
+  triggerArrow.className = "fas fa-chevron-down custom-select-arrow";
+
+  trigger.appendChild(triggerText);
+  trigger.appendChild(triggerArrow);
+
+  // Options container
+  const optionsList = document.createElement("div");
+  optionsList.className = "custom-select-options";
+
+  // Build items from <option> tags
+  function renderOptions() {
+    optionsList.innerHTML = "";
+    const options = Array.from(selectEl.options);
+    const selectedOpt = selectEl.options[selectEl.selectedIndex] || options[0];
+    triggerText.textContent = selectedOpt ? selectedOpt.text : "Pilih opsi...";
+
+    options.forEach((opt) => {
+      const item = document.createElement("div");
+      item.className = "custom-select-item";
+      if (opt.value === selectEl.value) {
+        item.classList.add("is-selected");
+      }
+      if (opt.disabled) {
+        item.classList.add("is-disabled");
+      }
+
+      item.innerHTML = `
+        <span class="option-text">${opt.text}</span>
+        ${opt.value === selectEl.value ? '<i class="fas fa-check option-check-icon"></i>' : ''}
+      `;
+
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (opt.disabled) return;
+        selectEl.value = opt.value;
+        selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+        selectEl.dispatchEvent(new Event("input", { bubbles: true }));
+        closeAllCustomDropdowns();
+      });
+
+      optionsList.appendChild(item);
+    });
+  }
+
+  renderOptions();
+
+  // Toggle open
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (selectEl.disabled) return;
+    const isOpen = wrap.classList.contains("is-open");
+    closeAllCustomDropdowns();
+    if (!isOpen) {
+      wrap.classList.add("is-open");
+      renderOptions();
+    }
+  });
+
+  // Insert wrapper into DOM
+  selectEl.parentNode.insertBefore(wrap, selectEl);
+  wrap.appendChild(selectEl);
+  wrap.appendChild(trigger);
+  wrap.appendChild(optionsList);
+
+  // Listen for native select change to re-render custom trigger
+  selectEl.addEventListener("change", () => {
+    renderOptions();
+    if (selectEl.classList.contains("input-error")) {
+      trigger.classList.add("input-error");
+    } else {
+      trigger.classList.remove("input-error");
+    }
+  });
+
+  // Sync error and disabled states
+  const observer = new MutationObserver(() => {
+    if (selectEl.classList.contains("input-error")) {
+      trigger.classList.add("input-error");
+    } else {
+      trigger.classList.remove("input-error");
+    }
+    if (selectEl.disabled) {
+      wrap.classList.add("is-disabled");
+    } else {
+      wrap.classList.remove("is-disabled");
+    }
+  });
+  observer.observe(selectEl, { attributes: true, attributeFilter: ["class", "disabled"] });
+
+  wrap._renderOptions = renderOptions;
+}
+
+function initAllCustomDropdowns(root = document) {
+  root.querySelectorAll("select").forEach(select => {
+    initCustomDropdown(select);
+  });
+}
+
+function syncCustomDropdowns(root = document) {
+  root.querySelectorAll(".custom-select-wrap").forEach(wrap => {
+    if (typeof wrap._renderOptions === "function") {
+      wrap._renderOptions();
+    }
+  });
+}
+
+function closeAllCustomDropdowns() {
+  document.querySelectorAll(".custom-select-wrap.is-open").forEach(w => {
+    w.classList.remove("is-open");
+  });
+}
+
+// Global click & escape to close dropdowns
+document.addEventListener("click", closeAllCustomDropdowns);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeAllCustomDropdowns();
+});
+
 // --- INITIALIZATION ---
 document.addEventListener("DOMContentLoaded", () => {
   initRouting();
@@ -347,8 +515,18 @@ document.addEventListener("DOMContentLoaded", () => {
   initCart();
   initModals();
   initForms();
+  initAdmin();
+  initAllCustomDropdowns();
   renderHomeFeatured();
   renderBlogList();
+
+  // Load from API in background and re-render with fresh data
+  loadBooksFromAPI().then(() => {
+    renderHomeFeatured();
+    renderCatalog();
+    renderAdminDashboard();
+    syncCustomDropdowns();
+  });
 });
 
 // --- ROUTING (SPA NAVIGATION) ---
@@ -402,6 +580,19 @@ function showPage(pageId) {
     targetId = "home";
   }
 
+  // Toggle Dedicated Backoffice Mode
+  if (targetId === "admin") {
+    document.body.classList.add("in-admin-mode");
+    renderAdminView();
+  } else {
+    document.body.classList.remove("in-admin-mode");
+    if (targetId === "katalog") {
+      renderCatalog();
+    } else if (targetId === "home") {
+      renderHomeFeatured();
+    }
+  }
+
   // Update Active Nav Link
   const navLinks = document.querySelectorAll(".nav-menu .nav-link");
   navLinks.forEach(link => {
@@ -412,6 +603,10 @@ function showPage(pageId) {
       link.classList.remove("active");
     }
   });
+
+  // Close mobile sub-nav if open
+  const subNav = document.getElementById("nav-sub-bar");
+  if (subNav) subNav.classList.remove("open");
 
   // Scroll to top
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -620,6 +815,10 @@ function createBookCard(book) {
           ${originalPriceHtml}
           ${discountHtml}
         </div>
+        ${book.marketplace_links && book.marketplace_links.shopee ? `
+        <div style="margin: 6px 0 10px 0; display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; color: #ee4d2d; font-weight: 600; background: rgba(238, 77, 45, 0.08); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(238, 77, 45, 0.2);">
+          <i class="fas fa-shopping-basket"></i> Di Shopee Resmi
+        </div>` : ''}
         <div class="book-card-actions">
           <button class="btn btn-primary btn-sm btn-detail" data-id="${book.id}">Detail & Beli</button>
           <button class="btn btn-sample btn-sm btn-sneak-peek" data-id="${book.id}">Intip Isi (PDF)</button>
@@ -819,6 +1018,7 @@ function handleCartCheckout() {
 function initModals() {
   const detailModal = document.getElementById("book-detail-modal");
   const pdfModal = document.getElementById("pdf-viewer-modal");
+  const adminModal = document.getElementById("admin-book-modal");
 
   const closeBtns = document.querySelectorAll(".modal-close, .modal-close-trigger");
 
@@ -826,6 +1026,7 @@ function initModals() {
     btn.addEventListener("click", () => {
       if (detailModal) detailModal.classList.remove("active");
       if (pdfModal) pdfModal.classList.remove("active");
+      if (adminModal) adminModal.classList.remove("active");
       document.body.style.overflow = ""; // restore scrolling
     });
   });
@@ -838,6 +1039,10 @@ function initModals() {
     }
     if (e.target === pdfModal) {
       pdfModal.classList.remove("active");
+      document.body.style.overflow = "";
+    }
+    if (e.target === adminModal) {
+      adminModal.classList.remove("active");
       document.body.style.overflow = "";
     }
   });
@@ -869,7 +1074,7 @@ function initModals() {
 }
 
 function openBookDetailModal(bookId) {
-  const book = BOOKS.find(b => b.id === bookId);
+  const book = BOOKS.find(b => b.id === bookId || b.altId === bookId);
   if (!book) return;
 
   ACTIVE_BOOK = book;
@@ -886,6 +1091,12 @@ function openBookDetailModal(bookId) {
   document.getElementById("detail-weight").textContent = book.specs.weight;
   document.getElementById("detail-date").textContent = book.specs.releaseDate;
   document.getElementById("detail-publisher").textContent = book.specs.publisher;
+
+  // Warranty text
+  const warrantyEl = document.getElementById("detail-warranty-text");
+  if (warrantyEl) {
+    warrantyEl.textContent = book.warranty || "Setiap pembelian di situs resmi ini mendapatkan garansi penukaran buku baru jika terdapat kerusakan cetak atau halaman yang terbalik.";
+  }
 
   // Prices
   const originalWrap = document.getElementById("detail-original-price");
@@ -946,12 +1157,30 @@ function openBookDetailModal(bookId) {
 
   // Format link buttons / Event handlers
   buyWaBtn.onclick = () => {
+    if (book.marketplace_links && book.marketplace_links.whatsapp_sales && book.marketplace_links.whatsapp_sales !== "https://wa.me") {
+      window.open(book.marketplace_links.whatsapp_sales, "_blank");
+      return;
+    }
     const text = `Halo Sales Darussholah,\nSaya ingin membeli buku *${book.title}* via WhatsApp. Mohon diinfokan langkah selanjutnya. Terima kasih!`;
     window.open(`https://wa.me/628123456789?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  tokopediaBtn.href = `https://www.tokopedia.com/search?q=Darussholah%20${encodeURIComponent(book.title)}`;
-  shopeeBtn.href = `https://shopee.co.id/search?keyword=Darussholah%20${encodeURIComponent(book.title)}`;
+  // Direct Marketplace links
+  if (book.marketplace_links && book.marketplace_links.tokopedia) {
+    tokopediaBtn.href = book.marketplace_links.tokopedia;
+    tokopediaBtn.title = "Buka produk di Tokopedia";
+  } else {
+    tokopediaBtn.href = `https://www.tokopedia.com/search?q=Darussholah%20${encodeURIComponent(book.title)}`;
+  }
+
+  if (book.marketplace_links && book.marketplace_links.shopee) {
+    shopeeBtn.href = book.marketplace_links.shopee;
+    shopeeBtn.innerHTML = `<i class="fas fa-shopping-basket"></i> Beli di Shopee`;
+    shopeeBtn.title = "Buka produk di Shopee";
+  } else {
+    shopeeBtn.href = `https://shopee.co.id/search?keyword=Darussholah%20${encodeURIComponent(book.title)}`;
+    shopeeBtn.innerHTML = `<i class="fas fa-shopping-basket"></i> Shopee`;
+  }
 
   addToCartBtn.onclick = () => {
     addToCart(book.id, "print");
@@ -1295,7 +1524,7 @@ function openArticleDetail(postId) {
       <button class="modal-close" id="article-close-btn"><i class="fas fa-times"></i></button>
       <div class="bg-gradient-to-br ${catBg}" style="padding:50px 30px; text-align:center; color:white; border-top-left-radius:12px; border-top-right-radius:12px;">
         <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; font-weight:bold; color:var(--accent); display:block; margin-bottom:10px;">Kategori: ${post.category}</span>
-        <h2 style="color:white; font-size:1.8rem; line-height:1.3; font-family:var(--font-serif);">${post.title}</h2>
+        <h2 style="color:white; font-size:1.8rem; line-height:1.3; font-family:var(--font-base);">${post.title}</h2>
         <div style="display:flex; justify-content:center; gap:20px; font-size:0.8rem; margin-top:20px; opacity:0.8;">
           <span>By: ${post.author}</span>
           <span>|</span>
@@ -1304,7 +1533,7 @@ function openArticleDetail(postId) {
           <span>${post.readTime}</span>
         </div>
       </div>
-      <div style="padding:40px; font-size:1rem; line-height:1.8; color:var(--text-main); font-family:Georgia, serif; text-align:justify;">
+      <div style="padding:40px; font-size:1rem; line-height:1.8; color:var(--text-main); text-align:justify;">
         ${post.content}
       </div>
       <div style="padding:20px 40px; background-color:var(--bg-cream-dark); border-bottom-left-radius:12px; border-bottom-right-radius:12px; display:flex; justify-content:space-between; align-items:center;">
@@ -1328,3 +1557,1216 @@ function openArticleDetail(postId) {
     if (e.target === articleModal) closeFn();
   });
 }
+
+/*
+========================================================================
+   ADMIN PORTAL CMS & REST API CLIENT
+   CRUD, Real-time sync, Cover Uploads, and Stats Engine
+========================================================================
+*/
+
+async function loadBooksFromAPI() {
+  try {
+    const res = await fetch("/api/books");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        BOOKS = data;
+        console.log("Katalog buku berhasil disinkronkan dari Backend API:", BOOKS.length, "buku.");
+        const statusEl = document.getElementById("stat-server-status");
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Terhubung (API)';
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Backend API tidak merespons, menggunakan fallback data lokal:", err);
+    const statusEl = document.getElementById("stat-server-status");
+    if (statusEl) statusEl.innerHTML = '<i class="fas fa-database"></i> Mode Offline';
+  }
+}
+
+// --- Admin Modal Tab Switcher, Currency & Validation Engine (Shared Global Scope) ---
+const ADMIN_TABS = [
+  { id: "basic", label: "Langkah 1 dari 3: Info & Sinopsis" },
+  { id: "pricing", label: "Langkah 2 dari 3: Harga & Marketplace" },
+  { id: "specs", label: "Langkah 3 dari 3: Spesifikasi & Cover" }
+];
+let currentAdminTabIndex = 0;
+
+const REQUIRED_ADMIN_FIELDS = [
+  { id: "form-book-title", name: "Judul Lengkap Buku", tab: "basic", tabIndex: 0, tabLabel: "1. Info & Sinopsis" },
+  { id: "form-book-author", name: "Penulis / Penyusun", tab: "basic", tabIndex: 0, tabLabel: "1. Info & Sinopsis" },
+  { id: "form-book-genre", name: "Kategori / Genre Kitab", tab: "basic", tabIndex: 0, tabLabel: "1. Info & Sinopsis" },
+  { id: "form-book-original-price", name: "Harga Normal / HET", tab: "pricing", tabIndex: 1, tabLabel: "2. Harga & Marketplace" },
+  { id: "form-book-price", name: "Harga Jual Akhir", tab: "pricing", tabIndex: 1, tabLabel: "2. Harga & Marketplace" }
+];
+
+function formatRupiahInput(inputEl) {
+  if (!inputEl) return 0;
+  const rawVal = inputEl.value;
+  const cursorStart = inputEl.selectionStart || 0;
+  const digitsBeforeCursor = (rawVal.slice(0, cursorStart).match(/\d/g) || []).length;
+  
+  const cleanDigits = rawVal.replace(/\D/g, "");
+  if (!cleanDigits) {
+    inputEl.value = "";
+    return 0;
+  }
+  
+  const num = parseInt(cleanDigits, 10);
+  const formatted = num.toLocaleString("id-ID");
+  inputEl.value = formatted;
+  
+  // Reposition cursor smoothly
+  let newCursorPos = 0;
+  let seenDigits = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted[i])) {
+      seenDigits++;
+    }
+    if (seenDigits === digitsBeforeCursor) {
+      newCursorPos = i + 1;
+      break;
+    }
+  }
+  if (digitsBeforeCursor === 0) newCursorPos = 0;
+  if (seenDigits < digitsBeforeCursor) newCursorPos = formatted.length;
+  
+  try {
+    inputEl.setSelectionRange(newCursorPos, newCursorPos);
+  } catch (e) {}
+  
+  return num;
+}
+
+function parseRupiah(val) {
+  if (typeof val === "number") return val;
+  if (!val) return 0;
+  const clean = String(val).replace(/\D/g, "");
+  return clean ? parseInt(clean, 10) : 0;
+}
+
+function formatRupiahDisplay(num) {
+  if (num === null || num === undefined || isNaN(num) || num === "") return "";
+  const parsed = parseInt(String(num).replace(/\D/g, ""), 10);
+  if (isNaN(parsed)) return "";
+  return parsed.toLocaleString("id-ID");
+}
+
+function switchAdminTab(index) {
+  currentAdminTabIndex = Math.max(0, Math.min(index, ADMIN_TABS.length - 1));
+  const activeTab = ADMIN_TABS[currentAdminTabIndex];
+
+  document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === activeTab.id);
+  });
+
+  document.querySelectorAll(".admin-tab-pane").forEach(pane => {
+    pane.classList.toggle("active", pane.id === `pane-${activeTab.id}`);
+  });
+
+  const prevBtn = document.getElementById("admin-tab-prev-btn");
+  const nextBtn = document.getElementById("admin-tab-next-btn");
+  const stepIndicator = document.getElementById("admin-step-indicator");
+
+  if (prevBtn) prevBtn.style.display = currentAdminTabIndex > 0 ? "inline-flex" : "none";
+  if (nextBtn) nextBtn.style.display = currentAdminTabIndex < ADMIN_TABS.length - 1 ? "inline-flex" : "none";
+  if (stepIndicator) stepIndicator.textContent = activeTab.label;
+}
+
+function validateAdminForm(showAlert = true) {
+  const errors = [];
+  const tabErrorCounts = { basic: 0, pricing: 0, specs: 0 };
+
+  REQUIRED_ADMIN_FIELDS.forEach(field => {
+    const el = document.getElementById(field.id);
+    const errEl = document.getElementById(`err-${field.id}`);
+    const wrapEl = document.getElementById(`wrap-${field.id}`);
+    if (!el) return;
+
+    const val = (el.value || "").trim();
+    let isInvalid = !val;
+    if (el.type === "number" && !isInvalid) {
+      const numVal = parseFloat(val);
+      if (isNaN(numVal) || numVal <= 0) {
+        isInvalid = true;
+      }
+    }
+    if ((field.id === "form-book-original-price" || field.id === "form-book-price") && !isInvalid) {
+      const numVal = parseRupiah(val);
+      if (numVal <= 0) {
+        isInvalid = true;
+      }
+    }
+
+    if (isInvalid) {
+      errors.push(field);
+      tabErrorCounts[field.tab]++;
+      el.classList.add("input-error");
+      if (wrapEl) wrapEl.classList.add("has-error");
+      if (errEl) errEl.style.display = "inline-flex";
+    } else {
+      el.classList.remove("input-error");
+      if (wrapEl) wrapEl.classList.remove("has-error");
+      if (errEl) errEl.style.display = "none";
+    }
+  });
+
+  // Update Tab Error Badges on sub-navigation buttons
+  Object.keys(tabErrorCounts).forEach(tabKey => {
+    const badge = document.getElementById(`badge-tab-${tabKey}`);
+    const tabBtn = document.getElementById(`tab-btn-${tabKey}`);
+    const count = tabErrorCounts[tabKey];
+    if (badge && tabBtn) {
+      if (count > 0) {
+        badge.style.display = "inline-flex";
+        badge.textContent = count;
+        tabBtn.classList.add("tab-has-error");
+      } else {
+        badge.style.display = "none";
+        tabBtn.classList.remove("tab-has-error");
+      }
+    }
+  });
+
+  // Update Top Alert Notification Banner (Sleek 1-line bar)
+  const alertBanner = document.getElementById("admin-validation-alert");
+  const alertText = document.getElementById("val-alert-text");
+  if (alertBanner) {
+    if (showAlert && errors.length > 0) {
+      if (alertText) {
+        alertText.innerHTML = `Mohon lengkapi <strong>${errors.length} kolom wajib</strong> yang ditandai merah pada tab di atas.`;
+      }
+      alertBanner.style.display = "flex";
+    } else {
+      alertBanner.style.display = "none";
+    }
+  }
+
+  return errors;
+}
+
+function clearAdminFormValidation() {
+  REQUIRED_ADMIN_FIELDS.forEach(field => {
+    const el = document.getElementById(field.id);
+    const errEl = document.getElementById(`err-${field.id}`);
+    const wrapEl = document.getElementById(`wrap-${field.id}`);
+    if (el) el.classList.remove("input-error");
+    if (wrapEl) wrapEl.classList.remove("has-error");
+    if (errEl) errEl.style.display = "none";
+  });
+
+  ["basic", "pricing", "specs"].forEach(tabKey => {
+    const badge = document.getElementById(`badge-tab-${tabKey}`);
+    const tabBtn = document.getElementById(`tab-btn-${tabKey}`);
+    if (badge) badge.style.display = "none";
+    if (tabBtn) tabBtn.classList.remove("tab-has-error");
+  });
+
+  const alertBanner = document.getElementById("admin-validation-alert");
+  if (alertBanner) alertBanner.style.display = "none";
+}
+
+function jumpToAdminFormField(tabIndex, fieldId) {
+  switchAdminTab(parseInt(tabIndex));
+  setTimeout(() => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      const customTrigger = el.parentElement?.querySelector(".custom-select-trigger");
+      const target = customTrigger || el;
+      target.focus();
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.remove("input-error");
+      void target.offsetWidth; // retrigger css animation
+      target.classList.add("input-error");
+    }
+  }, 60);
+}
+
+// Global window attachments
+window.switchAdminTab = switchAdminTab;
+window.formatRupiahInput = formatRupiahInput;
+window.parseRupiah = parseRupiah;
+window.formatRupiahDisplay = formatRupiahDisplay;
+window.validateAdminForm = validateAdminForm;
+window.clearAdminFormValidation = clearAdminFormValidation;
+window.jumpToAdminFormField = jumpToAdminFormField;
+
+function initAdmin() {
+  const openAddBtn = document.getElementById("admin-btn-open-add");
+  const modalCloseBtn = document.getElementById("admin-modal-close-btn");
+  const cancelBtn = document.getElementById("admin-btn-cancel");
+  const refreshBtn = document.getElementById("admin-refresh-btn");
+  const searchInput = document.getElementById("admin-search-input");
+  const genreFilter = document.getElementById("admin-filter-genre");
+  const form = document.getElementById("admin-book-form");
+  const modal = document.getElementById("admin-book-modal");
+
+  // Dropzone elements
+  const dropzone = document.getElementById("admin-cover-dropzone");
+  const fileInput = document.getElementById("form-book-cover-file");
+  const previewBox = document.getElementById("admin-cover-preview-box");
+  const previewImg = document.getElementById("admin-cover-preview-img");
+  const removeCoverBtn = document.getElementById("admin-btn-remove-cover");
+  const coverUrlInput = document.getElementById("form-book-cover-url");
+
+  // Price auto calculation
+  const origPriceInput = document.getElementById("form-book-original-price");
+  const discountInput = document.getElementById("form-book-discount");
+  const priceInput = document.getElementById("form-book-price");
+
+  if (!modal) return;
+
+  const updatePriceCalculation = () => {
+    const orig = parseRupiah(origPriceInput?.value || 0);
+    const disc = parseFloat(discountInput?.value || 0) || 0;
+    if (orig > 0) {
+      const calculated = Math.round(orig * (1 - disc / 100));
+      if (priceInput) priceInput.value = formatRupiahDisplay(calculated);
+    }
+  };
+
+  origPriceInput?.addEventListener("input", () => {
+    formatRupiahInput(origPriceInput);
+    updatePriceCalculation();
+    if (parseRupiah(origPriceInput.value) > 0) {
+      origPriceInput.classList.remove("input-error");
+      const errEl = document.getElementById("err-form-book-original-price");
+      if (errEl) errEl.style.display = "none";
+      const wrap = document.getElementById("wrap-form-book-original-price");
+      if (wrap) wrap.classList.remove("has-error");
+    }
+  });
+
+  priceInput?.addEventListener("input", () => {
+    formatRupiahInput(priceInput);
+    if (parseRupiah(priceInput.value) > 0) {
+      priceInput.classList.remove("input-error");
+      const errEl = document.getElementById("err-form-book-price");
+      if (errEl) errEl.style.display = "none";
+      const wrap = document.getElementById("wrap-form-book-price");
+      if (wrap) wrap.classList.remove("has-error");
+    }
+  });
+
+  discountInput?.addEventListener("input", updatePriceCalculation);
+
+  // Real-time input listeners to update tab badges dynamically as user types
+  REQUIRED_ADMIN_FIELDS.forEach(field => {
+    const el = document.getElementById(field.id);
+    if (!el) return;
+    const checkFieldOnInput = () => {
+      const val = (el.value || "").trim();
+      let isValid = !!val;
+      if (el.type === "number" && isValid) {
+        isValid = parseFloat(val) > 0;
+      }
+      if ((field.id === "form-book-original-price" || field.id === "form-book-price") && isValid) {
+        isValid = parseRupiah(val) > 0;
+      }
+
+      const wrapEl = document.getElementById(`wrap-${field.id}`);
+
+      if (isValid) {
+        el.classList.remove("input-error");
+        if (wrapEl) wrapEl.classList.remove("has-error");
+        const errEl = document.getElementById(`err-${field.id}`);
+        if (errEl) errEl.style.display = "none";
+
+        // Recheck tab error counts
+        const tabFields = REQUIRED_ADMIN_FIELDS.filter(f => f.tab === field.tab);
+        const remainingTabErrors = tabFields.filter(f => {
+          const fEl = document.getElementById(f.id);
+          const fVal = (fEl?.value || "").trim();
+          if (!fVal) return true;
+          if (fEl?.type === "number" && parseFloat(fVal) <= 0) return true;
+          if ((f.id === "form-book-original-price" || f.id === "form-book-price") && parseRupiah(fVal) <= 0) return true;
+          return false;
+        });
+
+        const badge = document.getElementById(`badge-tab-${field.tab}`);
+        const tabBtn = document.getElementById(`tab-btn-${field.tab}`);
+        if (badge && tabBtn) {
+          if (remainingTabErrors.length > 0) {
+            badge.style.display = "inline-flex";
+            badge.textContent = remainingTabErrors.length;
+            tabBtn.classList.add("tab-has-error");
+          } else {
+            badge.style.display = "none";
+            tabBtn.classList.remove("tab-has-error");
+          }
+        }
+
+        // Check if any error left globally
+        const anyGlobalErrors = REQUIRED_ADMIN_FIELDS.some(f => {
+          const fEl = document.getElementById(f.id);
+          const fVal = (fEl?.value || "").trim();
+          if (!fVal) return true;
+          if (fEl?.type === "number" && parseFloat(fVal) <= 0) return true;
+          if ((f.id === "form-book-original-price" || f.id === "form-book-price") && parseRupiah(fVal) <= 0) return true;
+          return false;
+        });
+        const alertBanner = document.getElementById("admin-validation-alert");
+        if (alertBanner && !anyGlobalErrors) {
+          alertBanner.style.display = "none";
+        }
+      }
+    };
+
+    el.addEventListener("input", checkFieldOnInput);
+    el.addEventListener("change", checkFieldOnInput);
+  });
+
+  // Close button on validation alert banner
+  document.getElementById("admin-val-alert-close")?.addEventListener("click", () => {
+    const alertBanner = document.getElementById("admin-validation-alert");
+    if (alertBanner) alertBanner.style.display = "none";
+  });
+
+  window.switchAdminTab = function(index) {
+    currentAdminTabIndex = Math.max(0, Math.min(index, ADMIN_TABS.length - 1));
+    const activeTab = ADMIN_TABS[currentAdminTabIndex];
+
+    document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.tab === activeTab.id);
+    });
+
+    document.querySelectorAll(".admin-tab-pane").forEach(pane => {
+      pane.classList.toggle("active", pane.id === `pane-${activeTab.id}`);
+    });
+
+    const prevBtn = document.getElementById("admin-tab-prev-btn");
+    const nextBtn = document.getElementById("admin-tab-next-btn");
+    const stepIndicator = document.getElementById("admin-step-indicator");
+
+    if (prevBtn) prevBtn.style.display = currentAdminTabIndex > 0 ? "inline-flex" : "none";
+    if (nextBtn) nextBtn.style.display = currentAdminTabIndex < ADMIN_TABS.length - 1 ? "inline-flex" : "none";
+    if (stepIndicator) stepIndicator.textContent = activeTab.label;
+  };
+
+  // Bind Tab Click Buttons
+  document.querySelectorAll(".admin-tab-btn").forEach((btn, idx) => {
+    btn.addEventListener("click", () => window.switchAdminTab(idx));
+  });
+
+  // Next & Prev Buttons in Footer
+  document.getElementById("admin-tab-next-btn")?.addEventListener("click", () => {
+    validateAdminForm(false); // quietly update error badges on tabs
+    window.switchAdminTab(currentAdminTabIndex + 1);
+  });
+  document.getElementById("admin-tab-prev-btn")?.addEventListener("click", () => {
+    window.switchAdminTab(currentAdminTabIndex - 1);
+  });
+
+  // Global Modal open function for Add Book
+  window.openAddBookModal = function() {
+    const modalEl = document.getElementById("admin-book-modal");
+    const formEl = document.getElementById("admin-book-form");
+    const dropzoneEl = document.getElementById("admin-cover-dropzone");
+    const previewBoxEl = document.getElementById("admin-cover-preview-box");
+    const coverUrlEl = document.getElementById("form-book-cover-url");
+
+    if (formEl) formEl.reset();
+    clearAdminFormValidation();
+    syncCustomDropdowns(formEl);
+
+    const idEl = document.getElementById("form-book-id");
+    if (idEl) idEl.value = "";
+    if (coverUrlEl) coverUrlEl.value = "";
+    if (previewBoxEl) previewBoxEl.style.display = "none";
+    if (dropzoneEl) dropzoneEl.style.display = "block";
+    const titleEl = document.getElementById("admin-modal-title");
+    if (titleEl) titleEl.textContent = "Tambah Koleksi Buku Baru";
+    const submitBtn = document.getElementById("admin-btn-submit");
+    if (submitBtn) {
+      submitBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Buku';
+      submitBtn.disabled = false;
+    }
+    const warrantyEl = document.getElementById("form-book-warranty");
+    if (warrantyEl) warrantyEl.value = "Setiap pembelian di situs resmi ini mendapatkan garansi penukaran buku baru jika terdapat kerusakan cetak atau halaman yang terbalik.";
+    if (document.getElementById("form-book-width")) document.getElementById("form-book-width").value = "";
+    if (document.getElementById("form-book-height")) document.getElementById("form-book-height").value = "";
+    if (document.getElementById("form-book-length")) document.getElementById("form-book-length").value = "";
+    if (document.getElementById("form-book-thickness")) document.getElementById("form-book-thickness").value = "";
+    if (document.getElementById("form-book-size")) document.getElementById("form-book-size").value = "";
+    if (origPriceInput) origPriceInput.value = "";
+    if (discountInput) discountInput.value = "0";
+    if (priceInput) priceInput.value = "";
+    
+    switchAdminTab(0);
+
+    if (modalEl) {
+      modalEl.classList.add("active");
+      document.body.style.overflow = "hidden";
+    }
+  };
+
+  // Modal open/close
+  openAddBtn?.addEventListener("click", () => {
+    window.openAddBookModal();
+  });
+
+  const closeModal = () => {
+    modal.classList.remove("active");
+    document.body.style.overflow = "";
+  };
+
+  modalCloseBtn?.addEventListener("click", closeModal);
+  cancelBtn?.addEventListener("click", closeModal);
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Refresh data button
+  refreshBtn?.addEventListener("click", async () => {
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
+    await loadBooksFromAPI();
+    renderAdminDashboard();
+    renderCatalog();
+    renderHomeFeatured();
+    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Data Tersinkron!';
+    setTimeout(() => {
+      refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Muat Ulang Data';
+    }, 2000);
+  });
+
+  // Search & Filter
+  searchInput?.addEventListener("input", () => renderAdminDashboard());
+  genreFilter?.addEventListener("change", () => renderAdminDashboard());
+
+  // Table row action delegation (Robust fallback for all dynamic rows)
+  const tbodyEl = document.getElementById("admin-books-tbody");
+  tbodyEl?.addEventListener("click", (e) => {
+    const editBtn = e.target.closest(".btn-admin-edit");
+    if (editBtn && editBtn.dataset.id) {
+      e.preventDefault();
+      editBookInAdmin(editBtn.dataset.id);
+      return;
+    }
+    const viewBtn = e.target.closest(".btn-admin-view");
+    if (viewBtn && viewBtn.dataset.id) {
+      e.preventDefault();
+      openBookDetailModal(viewBtn.dataset.id);
+      return;
+    }
+    const delBtn = e.target.closest(".btn-admin-del");
+    if (delBtn && delBtn.dataset.id) {
+      e.preventDefault();
+      deleteBookFromAdmin(delBtn.dataset.id);
+      return;
+    }
+  });
+
+  // Upload file handling
+  dropzone?.addEventListener("click", () => fileInput.click());
+  
+  dropzone?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("dragover");
+  });
+
+  dropzone?.addEventListener("dragleave", () => {
+    dropzone.classList.remove("dragover");
+  });
+
+  dropzone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length > 0) {
+      handleFileSelected(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput?.addEventListener("change", (e) => {
+    if (e.target.files.length > 0) {
+      handleFileSelected(e.target.files[0]);
+    }
+  });
+
+  removeCoverBtn?.addEventListener("click", () => {
+    fileInput.value = "";
+    coverUrlInput.value = "";
+    previewBox.style.display = "none";
+    dropzone.style.display = "block";
+  });
+
+  async function handleFileSelected(file) {
+    if (!file.type.startsWith("image/")) {
+      alert("Silakan pilih file gambar (JPG, PNG, atau WebP).");
+      return;
+    }
+
+    // Local preview immediately
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      previewImg.src = base64Data;
+      previewBox.style.display = "flex";
+      dropzone.style.display = "none";
+
+      // Upload to backend API
+      try {
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: jsonSafeStringify({
+            filename: file.name,
+            data: base64Data
+          })
+        });
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          if (uploadData.url) {
+            coverUrlInput.value = uploadData.url;
+            console.log("Cover berhasil diunggah ke backend:", uploadData.url);
+          }
+        } else {
+          // Fallback: use data uri locally
+          coverUrlInput.value = base64Data;
+        }
+      } catch (err) {
+        console.warn("Upload ke server gagal, menggunakan data lokal:", err);
+        coverUrlInput.value = base64Data;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Form Submit with Cross-Tab Validation
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // Check all required fields across all tabs
+    const errors = validateAdminForm(true);
+    if (errors.length > 0) {
+      const firstError = errors[0];
+      // Automatically navigate to the tab with missing field & focus it
+      window.jumpToAdminFormField(firstError.tabIndex, firstError.id);
+      showAdminToast(`Ada ${errors.length} kolom wajib yang belum terisi. Beralih ke tab '${firstError.tabLabel}'...`, "warning");
+      return;
+    }
+
+    const submitBtn = document.getElementById("admin-btn-submit");
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+    submitBtn.disabled = true;
+
+    const bookId = document.getElementById("form-book-id").value;
+    const title = document.getElementById("form-book-title").value.trim();
+    const author = document.getElementById("form-book-author").value.trim();
+    const genre = document.getElementById("form-book-genre").value;
+    const format = document.getElementById("form-book-format").value;
+    const status = document.getElementById("form-book-status").value;
+    const isbn = document.getElementById("form-book-isbn").value.trim() || "Belum Terdaftar";
+    const widthVal = document.getElementById("form-book-width") ? document.getElementById("form-book-width").value.trim() : "";
+    const heightVal = (document.getElementById("form-book-height") || document.getElementById("form-book-length")) ? (document.getElementById("form-book-height") || document.getElementById("form-book-length")).value.trim() : "";
+    const thicknessVal = document.getElementById("form-book-thickness") ? document.getElementById("form-book-thickness").value.trim() : "";
+
+    const cleanW = widthVal.replace(/cm/gi, "").trim();
+    const cleanH = heightVal.replace(/cm/gi, "").trim();
+    const cleanT = thicknessVal.replace(/cm/gi, "").trim();
+
+    let size = "";
+    if (cleanW || cleanH) {
+      const parts = [];
+      if (cleanW) parts.push(cleanW);
+      if (cleanH) parts.push(cleanH);
+      if (cleanT) parts.push(cleanT);
+      size = parts.join(" × ") + " cm";
+    } else {
+      size = (document.getElementById("form-book-size")?.value || "").trim() || "10 × 14 × 1.5 cm";
+    }
+
+    const rawWeight = document.getElementById("form-book-weight").value.trim().replace(/gram/gi, "").trim();
+    const weight = rawWeight ? `${rawWeight} gram` : "200 gram";
+    const rawPages = document.getElementById("form-book-pages").value.trim().replace(/halaman|hlm/gi, "").trim();
+    const pages = rawPages ? `${rawPages} Halaman` : "100 Halaman";
+    const language = document.getElementById("form-book-language").value.trim() || "Indonesia";
+    const releaseDate = document.getElementById("form-book-release").value.trim() || "2026";
+    const originalPrice = parseRupiah(document.getElementById("form-book-original-price").value) || 0;
+    const discount = parseFloat(document.getElementById("form-book-discount").value) || 0;
+    const price = parseRupiah(document.getElementById("form-book-price").value) || originalPrice;
+    const shopeeLink = document.getElementById("form-book-shopee").value.trim();
+    const tokopediaLink = document.getElementById("form-book-tokopedia").value.trim();
+    const waLink = document.getElementById("form-book-wa").value.trim();
+    const synopsis = document.getElementById("form-book-synopsis").value.trim() || "Buku berkualitas terbitan resmi Darussholah.";
+    const warranty = document.getElementById("form-book-warranty").value.trim();
+    const coverImg = coverUrlInput.value || "";
+
+    // Parse dimensions for numeric format compatibility
+    const numWidth = parseFloat(cleanW.replace(',', '.')) || 10;
+    const numHeight = parseFloat(cleanH.replace(',', '.')) || (size.match(/(\d+)\s*[xX×]\s*(\d+)/) ? parseInt(size.match(/(\d+)\s*[xX×]\s*(\d+)/)[2]) : 14);
+    const numThickness = parseFloat(cleanT.replace(',', '.')) || 1.5;
+    const weightGram = parseInt(weight.replace(/\D/g, "")) || 180;
+    const pagesNum = parseInt(pages.replace(/\D/g, "")) || 180;
+
+    const bookPayload = {
+      id: bookId || undefined,
+      title: title,
+      author: author,
+      genre: genre,
+      format: format,
+      status: status,
+      isbn: isbn,
+      price: price,
+      originalPrice: originalPrice,
+      discount: discount,
+      synopsis: synopsis,
+      warranty: warranty,
+      coverImg: coverImg,
+      coverClass: coverImg ? "" : "bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900",
+      dimensions: {
+        width_cm: numWidth,
+        height_cm: numHeight,
+        length_cm: numHeight,
+        thickness_cm: numThickness,
+        type: (numHeight <= 15 && numWidth <= 11) ? "Saku" : "Standar"
+      },
+      weight_gram: weightGram,
+      pages: pagesNum,
+      pricing: {
+        original_price: originalPrice,
+        discount_percentage: discount,
+        selling_price: price,
+        currency: "IDR"
+      },
+      marketplace_links: {
+        shopee: shopeeLink || undefined,
+        tokopedia: tokopediaLink || undefined,
+        whatsapp_sales: waLink || undefined
+      },
+      specs: {
+        language: language,
+        pages: pages,
+        width: widthVal || `${numWidth} cm`,
+        height: heightVal || `${numHeight} cm`,
+        length: heightVal || `${numHeight} cm`,
+        thickness: thicknessVal || `${numThickness} cm`,
+        size: size,
+        weight: weight,
+        releaseDate: releaseDate,
+        publisher: "Darussholah"
+      },
+      samplePages: [
+        {
+          left: `<h2>${title}</h2><p>Buku ini diterbitkan secara resmi oleh Darussholah Publisher & Direct Retailer.</p><p>${synopsis}</p>`,
+          right: `<h2>DAFTAR ISI & SPESIFIKASI</h2><p>Kategori: ${genre.toUpperCase()}<br>ISBN: ${isbn}<br>Tebal: ${pages}<br>Dimensi: ${size}</p><p>Dapatkan buku asli hanya melalui website resmi atau akun Shopee Darussholah.</p>`
+        }
+      ]
+    };
+
+    try {
+      const saveRes = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: jsonSafeStringify(bookPayload)
+      });
+
+      if (saveRes.ok) {
+        const savedData = await saveRes.json();
+        const savedBook = savedData.book;
+        
+        // Update local BOOKS array
+        const existingIdx = BOOKS.findIndex(b => b.id === savedBook.id || (savedBook.altId && b.id === savedBook.altId));
+        if (existingIdx >= 0) {
+          BOOKS[existingIdx] = savedBook;
+        } else {
+          BOOKS.unshift(savedBook);
+        }
+      } else {
+        // Fallback local update
+        fallbackSaveLocal(bookPayload);
+      }
+    } catch (err) {
+      console.warn("Gagal menyimpan via API, fallback ke penyimpanan memori lokal:", err);
+      fallbackSaveLocal(bookPayload);
+    }
+
+    submitBtn.innerHTML = originalText;
+    submitBtn.disabled = false;
+    closeModal();
+
+    // Re-render components
+    renderAdminDashboard();
+    renderCatalog();
+    renderHomeFeatured();
+
+    // Toast feedback
+    showAdminToast("Buku berhasil disimpan ke katalog!", "success");
+  });
+}
+
+function fallbackSaveLocal(bookPayload) {
+  if (!bookPayload.id) {
+    bookPayload.id = "buku-" + Date.now();
+  }
+  const idx = BOOKS.findIndex(b => b.id === bookPayload.id);
+  if (idx >= 0) {
+    BOOKS[idx] = { ...BOOKS[idx], ...bookPayload };
+  } else {
+    BOOKS.unshift(bookPayload);
+  }
+}
+
+function renderAdminDashboard() {
+  const tbody = document.getElementById("admin-books-tbody");
+  const statTotal = document.getElementById("stat-total-books");
+  const statGenres = document.getElementById("stat-total-genres");
+  const statShopee = document.getElementById("stat-shopee-books");
+  const countBadge = document.getElementById("admin-count-badge");
+  const searchInput = document.getElementById("admin-search-input");
+  const genreFilter = document.getElementById("admin-filter-genre");
+
+  if (!tbody) return;
+
+  // Stats calculation
+  const totalCount = BOOKS.length;
+  const uniqueGenres = new Set(BOOKS.map(b => b.genre)).size;
+  const shopeeCount = BOOKS.filter(b => b.marketplace_links && b.marketplace_links.shopee).length;
+
+  if (statTotal) statTotal.textContent = totalCount;
+  if (statGenres) statGenres.textContent = uniqueGenres;
+  if (statShopee) statShopee.textContent = shopeeCount;
+
+  // Filter & Search
+  const query = (searchInput?.value || "").toLowerCase().trim();
+  const genreVal = genreFilter?.value || "all";
+
+  const filtered = BOOKS.filter(b => {
+    const matchesGenre = genreVal === "all" || b.genre === genreVal;
+    const matchesQuery = query === "" || 
+                         b.title.toLowerCase().includes(query) || 
+                         b.author.toLowerCase().includes(query) || 
+                         (b.isbn && b.isbn.includes(query));
+    return matchesGenre && matchesQuery;
+  });
+
+  if (countBadge) {
+    countBadge.textContent = `Menampilkan ${filtered.length} dari ${totalCount} Buku`;
+  }
+
+  tbody.innerHTML = "";
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding: 40px; color: var(--text-muted);">
+          <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 8px; display:block; opacity:0.5;"></i>
+          Tidak ada buku yang sesuai dengan pencarian.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filtered.forEach(book => {
+    const tr = document.createElement("tr");
+
+    const coverHtml = book.coverImg 
+      ? `<img src="${book.coverImg}" class="admin-thumb" alt="${book.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">`
+      : '';
+    const fallbackCover = `
+      <div class="admin-thumb ${book.coverClass || 'bg-gradient-to-br from-indigo-950 to-slate-900'}" style="color:white; font-size:0.65rem; font-weight:bold; text-align:center; padding:4px; ${book.coverImg ? 'display:none;' : 'display:flex;'}">
+        ${book.genre.substring(0, 3).toUpperCase()}
+      </div>
+    `;
+
+    const discountHtml = book.discount > 0 
+      ? `<span style="text-decoration:line-through; color:var(--text-muted); font-size:0.75rem; margin-left:4px;">Rp ${book.originalPrice?.toLocaleString('id-ID')}</span> <span class="admin-pill" style="background:#fee2e2; color:#dc2626; padding:1px 5px; font-size:0.68rem;">-${book.discount}%</span>` 
+      : '';
+
+    const shopeeStatus = (book.marketplace_links && book.marketplace_links.shopee) 
+      ? `<a href="${book.marketplace_links.shopee}" target="_blank" class="admin-pill admin-pill-shopee" title="Buka produk Shopee"><i class="fas fa-shopping-basket"></i> Shopee Aktif</a>`
+      : `<span style="font-size:0.75rem; color:var(--text-muted);">-</span>`;
+
+    tr.innerHTML = `
+      <td>
+        <div style="position:relative;">
+          ${coverHtml}
+          ${fallbackCover}
+        </div>
+      </td>
+      <td>
+        <span class="admin-book-title-cell">${book.title}</span>
+        <span class="admin-book-author-cell">Oleh: ${book.author} | ISBN: ${book.isbn || '-'}</span>
+      </td>
+      <td>
+        <span class="admin-pill admin-pill-genre">${book.genre.toUpperCase()}</span>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Format: ${book.format === 'ebook' ? 'Digital' : 'Cetak'}</div>
+      </td>
+      <td>
+        <strong style="color:var(--primary); font-size:0.92rem;">Rp ${book.price.toLocaleString('id-ID')}</strong>
+        <div>${discountHtml}</div>
+      </td>
+      <td>
+        <div style="font-size:0.8rem; color:var(--text-main);">${book.specs?.size || '-'}</div>
+        <div style="font-size:0.72rem; color:var(--text-muted);">${book.specs?.weight || '-'} | ${book.specs?.pages || '-'}</div>
+      </td>
+      <td>
+        ${shopeeStatus}
+      </td>
+      <td>
+        <div class="admin-action-group">
+          <button type="button" class="btn-admin-act btn-admin-view" title="Lihat di Modal Pengunjung" data-id="${book.id}">
+            <i class="fas fa-eye" style="pointer-events: none;"></i>
+          </button>
+          <button type="button" class="btn-admin-act btn-admin-edit" title="Edit Data Buku" data-id="${book.id}">
+            <i class="fas fa-edit" style="pointer-events: none;"></i>
+          </button>
+          <button type="button" class="btn-admin-act btn-admin-del" title="Hapus Buku" data-id="${book.id}">
+            <i class="fas fa-trash-alt" style="pointer-events: none;"></i>
+          </button>
+        </div>
+      </td>
+    `;
+
+    // Bind row actions
+    tr.querySelector(".btn-admin-view")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openBookDetailModal(book.id);
+    });
+    tr.querySelector(".btn-admin-edit")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      editBookInAdmin(book.id);
+    });
+    tr.querySelector(".btn-admin-del")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteBookFromAdmin(book.id);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+function editBookInAdmin(bookId) {
+  const book = BOOKS.find(b => b.id === bookId || (b.altId && b.altId === bookId));
+  if (!book) return;
+
+  clearAdminFormValidation();
+
+  const modal = document.getElementById("admin-book-modal");
+  const previewBox = document.getElementById("admin-cover-preview-box");
+  const previewImg = document.getElementById("admin-cover-preview-img");
+  const dropzone = document.getElementById("admin-cover-dropzone");
+  const coverUrlInput = document.getElementById("form-book-cover-url");
+
+  // Tab 1: Info Dasar & Identitas
+  if (document.getElementById("form-book-id")) document.getElementById("form-book-id").value = book.id;
+  if (document.getElementById("form-book-title")) document.getElementById("form-book-title").value = book.title || "";
+  if (document.getElementById("form-book-author")) document.getElementById("form-book-author").value = book.author || "";
+  if (document.getElementById("form-book-genre")) document.getElementById("form-book-genre").value = book.genre || "umum";
+  if (document.getElementById("form-book-format")) document.getElementById("form-book-format").value = book.format || "print";
+  if (document.getElementById("form-book-status")) document.getElementById("form-book-status").value = book.status || "normal";
+  if (document.getElementById("form-book-isbn")) document.getElementById("form-book-isbn").value = book.isbn || "";
+  if (document.getElementById("form-book-synopsis")) document.getElementById("form-book-synopsis").value = book.synopsis || "";
+
+  // Tab 2: Harga & Penjualan
+  const origPrice = book.originalPrice || book.pricing?.original_price || book.price || book.pricing?.selling_price || 0;
+  const discVal = (book.discount !== undefined && book.discount !== null) ? book.discount : (book.pricing?.discount_percentage || 0);
+  const sellPrice = book.price || book.pricing?.selling_price || origPrice;
+
+  if (document.getElementById("form-book-original-price")) {
+    document.getElementById("form-book-original-price").value = formatRupiahDisplay(origPrice);
+  }
+  if (document.getElementById("form-book-discount")) {
+    document.getElementById("form-book-discount").value = discVal;
+  }
+  if (document.getElementById("form-book-price")) {
+    document.getElementById("form-book-price").value = formatRupiahDisplay(sellPrice);
+  }
+
+  if (document.getElementById("form-book-shopee")) {
+    document.getElementById("form-book-shopee").value = book.marketplace_links?.shopee || "";
+  }
+  if (document.getElementById("form-book-tokopedia")) {
+    document.getElementById("form-book-tokopedia").value = book.marketplace_links?.tokopedia || "";
+  }
+  if (document.getElementById("form-book-wa")) {
+    document.getElementById("form-book-wa").value = book.marketplace_links?.whatsapp_sales || "";
+  }
+  if (document.getElementById("form-book-warranty")) {
+    document.getElementById("form-book-warranty").value = book.warranty || "Setiap pembelian di situs resmi ini mendapatkan garansi penukaran buku baru jika terdapat kerusakan cetak atau halaman yang terbalik.";
+  }
+
+  // Tab 3: Spesifikasi Fisik & Cover
+  let bookWidth = "";
+  let bookHeight = "";
+  let bookThickness = "";
+
+  if (book.specs?.width) bookWidth = book.specs.width;
+  if (book.specs?.height) bookHeight = book.specs.height;
+  if (book.specs?.length && !bookHeight) bookHeight = book.specs.length;
+  if (book.specs?.thickness) bookThickness = book.specs.thickness;
+
+  if (!bookWidth && book.dimensions?.width_cm) {
+    bookWidth = `${book.dimensions.width_cm} cm`;
+  }
+  if (!bookHeight && book.dimensions?.height_cm) {
+    bookHeight = `${book.dimensions.height_cm} cm`;
+  }
+  if (!bookHeight && book.dimensions?.length_cm) {
+    bookHeight = `${book.dimensions.length_cm} cm`;
+  }
+  if (!bookThickness && book.dimensions?.thickness_cm) {
+    bookThickness = `${book.dimensions.thickness_cm} cm`;
+  }
+
+  // Fallback parsing from specs.size if available (e.g. "10 x 14 cm (Saku)" or "10 x 14 x 1.5 cm")
+  if (!bookWidth && !bookHeight && book.specs?.size) {
+    const rawSize = book.specs.size.replace(/\(.*?\)/g, '');
+    const parts = rawSize.match(/(\d+(?:[.,]\d+)?)/g);
+    if (parts && parts.length >= 2) {
+      const p1 = parseFloat(parts[0].replace(',', '.'));
+      const p2 = parseFloat(parts[1].replace(',', '.'));
+      if (p1 > p2) {
+        bookHeight = `${parts[0]} cm`;
+        bookWidth = `${parts[1]} cm`;
+      } else {
+        bookWidth = `${parts[0]} cm`;
+        bookHeight = `${parts[1]} cm`;
+      }
+      if (parts[2]) {
+        bookThickness = `${parts[2]} cm`;
+      }
+    }
+  }
+
+  if (document.getElementById("form-book-width")) document.getElementById("form-book-width").value = bookWidth.replace(/cm/gi, "").trim();
+  if (document.getElementById("form-book-height")) document.getElementById("form-book-height").value = bookHeight.replace(/cm/gi, "").trim();
+  if (document.getElementById("form-book-length")) document.getElementById("form-book-length").value = bookHeight.replace(/cm/gi, "").trim();
+  if (document.getElementById("form-book-thickness")) document.getElementById("form-book-thickness").value = bookThickness.replace(/cm/gi, "").trim();
+  if (document.getElementById("form-book-size")) document.getElementById("form-book-size").value = book.specs?.size || "";
+
+  const bookWeight = book.specs?.weight || (book.weight_gram ? `${book.weight_gram} gram` : "");
+  const bookPages = book.specs?.pages || (book.pages ? `${book.pages} Halaman` : "");
+
+  if (document.getElementById("form-book-weight")) {
+    document.getElementById("form-book-weight").value = bookWeight.replace(/gram/gi, "").trim();
+  }
+  if (document.getElementById("form-book-pages")) {
+    document.getElementById("form-book-pages").value = bookPages.replace(/halaman|hlm/gi, "").trim();
+  }
+  if (document.getElementById("form-book-language")) {
+    document.getElementById("form-book-language").value = book.specs?.language || "Indonesia & Arab";
+  }
+
+  const rawRelease = book.specs?.releaseDate || book.specs?.year || book.published_date || "";
+  const yearMatch = String(rawRelease).match(/\b(19\d\d|20\d\d)\b/);
+  if (document.getElementById("form-book-release")) {
+    document.getElementById("form-book-release").value = yearMatch ? yearMatch[0] : rawRelease;
+  }
+
+  // Cover image preview / dropzone
+  if (book.coverImg) {
+    if (coverUrlInput) coverUrlInput.value = book.coverImg;
+    if (previewImg) previewImg.src = book.coverImg;
+    if (previewBox) previewBox.style.display = "flex";
+    if (dropzone) dropzone.style.display = "none";
+  } else {
+    if (coverUrlInput) coverUrlInput.value = "";
+    if (previewBox) previewBox.style.display = "none";
+    if (dropzone) dropzone.style.display = "block";
+  }
+
+  // Set modal header & action button text
+  const modalTitle = document.getElementById("admin-modal-title");
+  if (modalTitle) modalTitle.textContent = `Edit Buku: ${book.title}`;
+
+  const submitBtn = document.getElementById("admin-btn-submit");
+  if (submitBtn) {
+    submitBtn.innerHTML = '<i class="fas fa-save"></i> Perbarui Buku';
+    submitBtn.disabled = false;
+  }
+
+  // Synchronize custom dropdown UI and switch to first tab
+  syncCustomDropdowns(document.getElementById("admin-book-form"));
+  switchAdminTab(0);
+
+  if (modal) {
+    modal.classList.add("active");
+    document.body.style.overflow = "hidden";
+  }
+}
+
+// Global exports for accessibility and programmatic calls
+window.editBookInAdmin = editBookInAdmin;
+window.openEditBookModal = editBookInAdmin;
+
+async function deleteBookFromAdmin(bookId) {
+  const book = BOOKS.find(b => b.id === bookId || (b.altId && b.altId === bookId));
+  if (!book) return;
+
+  if (!confirm(`Apakah Anda yakin ingin menghapus buku "${book.title}" dari katalog?`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/books/${book.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      console.warn("Delete API returned non-OK status, deleting locally.");
+    }
+  } catch (err) {
+    console.warn("Delete via API gagal, menghapus dari state memori:", err);
+  }
+
+  // Remove locally
+  BOOKS = BOOKS.filter(b => b.id !== bookId && b.altId !== bookId);
+  renderAdminDashboard();
+  renderCatalog();
+  renderHomeFeatured();
+
+  showAdminToast(`Buku "${book.title}" berhasil dihapus.`, "info");
+}
+
+function showAdminToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.style.position = "fixed";
+  toast.style.bottom = "24px";
+  toast.style.right = "24px";
+
+  let bg = "#1e293b";
+  let icon = "fa-info-circle";
+  if (type === "success") {
+    bg = "#0f766e";
+    icon = "fa-check-circle";
+  } else if (type === "warning") {
+    bg = "#c2410c";
+    icon = "fa-exclamation-triangle";
+  } else if (type === "error") {
+    bg = "#b91c1c";
+    icon = "fa-times-circle";
+  }
+
+  toast.style.backgroundColor = bg;
+  toast.style.color = "#ffffff";
+  toast.style.padding = "14px 24px";
+  toast.style.borderRadius = "10px";
+  toast.style.boxShadow = "0 12px 28px -5px rgba(0,0,0,0.35)";
+  toast.style.zIndex = "99999";
+  toast.style.fontSize = "0.92rem";
+  toast.style.fontWeight = "600";
+  toast.style.display = "flex";
+  toast.style.alignItems = "center";
+  toast.style.gap = "12px";
+  toast.style.transition = "all 0.3s ease";
+  toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(10px)";
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function jsonSafeStringify(obj) {
+  return JSON.stringify(obj);
+}
+
+function toggleMobileNav() {
+  const subNav = document.getElementById("nav-sub-bar");
+  if (subNav) {
+    subNav.classList.toggle("open");
+  }
+}
+window.toggleMobileNav = toggleMobileNav;
+
+// ========================================================================
+// ADMIN AUTHENTICATION GATE & SECURITY LOGIC
+// ========================================================================
+const ADMIN_MASTER_PASSWORD = "darussholah2026";
+const ADMIN_SESSION_KEY = "darussholah_admin_session";
+
+function isAdminAuthenticated() {
+  return sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
+}
+
+function renderAdminView() {
+  const loginView = document.getElementById("admin-login-view");
+  const dashView = document.getElementById("admin-dashboard-view");
+  
+  if (isAdminAuthenticated()) {
+    if (loginView) loginView.style.display = "none";
+    if (dashView) dashView.style.display = "block";
+    renderAdminDashboard();
+  } else {
+    if (dashView) dashView.style.display = "none";
+    if (loginView) {
+      loginView.style.display = "flex";
+      const pwdInput = document.getElementById("admin-password-input");
+      const errBox = document.getElementById("admin-login-error");
+      if (pwdInput) pwdInput.value = "";
+      if (errBox) errBox.style.display = "none";
+      setTimeout(() => pwdInput?.focus(), 150);
+    }
+  }
+}
+
+function handleAdminLogin(e) {
+  if (e) e.preventDefault();
+  const pwdInput = document.getElementById("admin-password-input");
+  const errBox = document.getElementById("admin-login-error");
+  const card = document.querySelector(".admin-login-card");
+  const entered = pwdInput?.value.trim();
+
+  // Validate master password (or simple admin fallback)
+  if (entered === ADMIN_MASTER_PASSWORD || entered === "admin") {
+    sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
+    if (errBox) errBox.style.display = "none";
+    showAdminToast("Berhasil masuk. Selamat datang di Portal Admin Darussholah!", "success");
+    renderAdminView();
+  } else {
+    if (errBox) {
+      errBox.style.display = "flex";
+    }
+    if (card) {
+      card.classList.remove("shake-animation");
+      void card.offsetWidth; // Force CSS reflow to re-trigger animation
+      card.classList.add("shake-animation");
+    }
+    if (pwdInput) {
+      pwdInput.value = "";
+      pwdInput.focus();
+    }
+  }
+}
+
+function handleAdminLogout() {
+  sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  showAdminToast("Sesi administrator telah ditutup. Akses terkunci.", "info");
+  renderAdminView();
+}
+
+function toggleAdminPasswordVisibility() {
+  const pwdInput = document.getElementById("admin-password-input");
+  const eyeIcon = document.getElementById("admin-pwd-eye");
+  if (!pwdInput || !eyeIcon) return;
+  
+  if (pwdInput.type === "password") {
+    pwdInput.type = "text";
+    eyeIcon.classList.remove("fa-eye");
+    eyeIcon.classList.add("fa-eye-slash");
+  } else {
+    pwdInput.type = "password";
+    eyeIcon.classList.remove("fa-eye-slash");
+    eyeIcon.classList.add("fa-eye");
+  }
+}
+
+// Global Secret Shortcut for Staff: Ctrl + Shift + A
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
+    e.preventDefault();
+    navigateTo("admin");
+  }
+});
+
+// Export functions to global scope
+window.handleAdminLogin = handleAdminLogin;
+window.handleAdminLogout = handleAdminLogout;
+window.toggleAdminPasswordVisibility = toggleAdminPasswordVisibility;
+window.renderAdminView = renderAdminView;
+window.isAdminAuthenticated = isAdminAuthenticated;
+
+

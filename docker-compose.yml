@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  tokobuku-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: darussholah_tokobuku
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./books.json:/app/books.json
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
